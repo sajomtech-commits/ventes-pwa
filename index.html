@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#6366f1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ventes">
+<link rel="manifest" href="manifest.json">
+<title>Suivi Ventes</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --green: #22c55e;
+    --orange: #f97316;
+    --blue: #3b82f6;
+    --red: #ef4444;
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* NAV */
+  nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+  nav button { flex: 1; border: none; background: none; padding: 12px 0 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--muted); font-size: 11px; transition: color .2s; }
+  nav button.active { color: var(--primary); }
+  nav button svg { width: 22px; height: 22px; }
+
+  /* HEADER */
+  header { background: var(--primary); color: white; padding: 16px 16px 16px; padding-top: calc(16px + env(safe-area-inset-top)); position: sticky; top: 0; z-index: 50; }
+  header h1 { font-size: 18px; font-weight: 700; }
+  header p { font-size: 13px; opacity: .8; margin-top: 2px; }
+
+  /* PAGES */
+  .page { display: none; padding: 16px; padding-bottom: 90px; }
+  .page.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  /* DASHBOARD */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .stat-card { background: var(--card); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .stat-card .value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+  .stat-card .label { font-size: 12px; color: var(--muted); }
+  .stat-card.green .value { color: var(--green); }
+  .stat-card.orange .value { color: var(--orange); }
+  .stat-card.blue .value { color: var(--blue); }
+  .stat-card.purple .value { color: var(--primary); }
+  .section-title { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 16px 0 8px; }
+
+  /* VENTES LIST */
+  .filters { display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; }
+  .filter-btn { border: none; padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; background: var(--card); color: var(--muted); box-shadow: 0 1px 2px rgba(0,0,0,.08); transition: all .15s; }
+  .filter-btn.active { background: var(--primary); color: white; }
+  .vente-item { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .vente-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .vente-nom { font-weight: 600; font-size: 15px; line-height: 1.3; }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge.vendu { background: #dcfce7; color: #166534; }
+  .badge.stock { background: #dbeafe; color: #1e40af; }
+  .badge.donne { background: #ffedd5; color: #9a3412; }
+  .vente-meta { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .vente-prix { font-size: 14px; font-weight: 600; margin-top: 6px; }
+  .vente-prix .benefice { color: var(--green); }
+  .vente-prix .benefice.neg { color: var(--red); }
+  .empty { text-align: center; padding: 40px 16px; color: var(--muted); }
+
+  /* FORM */
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  input, select, textarea { width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 15px; color: var(--text); background: white; transition: border-color .15s; -webkit-appearance: none; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+  textarea { resize: none; height: 80px; }
+  .btn-submit { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background .15s; }
+  .btn-submit:active { background: var(--primary-dark); }
+  .btn-submit:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+  .success-msg { background: #dcfce7; color: #166534; padding: 14px; border-radius: 10px; text-align: center; font-weight: 600; margin-bottom: 16px; display: none; }
+  .error-msg { background: #fee2e2; color: #991b1b; padding: 14px; border-radius: 10px; text-align: center; font-weight: 600; margin-bottom: 16px; display: none; }
+
+  /* CHART */
+  .chart-wrap { background: var(--card); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 12px; }
+  .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+  .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; }
+  .bar-label { width: 100px; font-size: 12px; color: var(--muted); text-align: right; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { flex: 1; background: var(--bg); border-radius: 4px; height: 20px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--primary); border-radius: 4px; transition: width .5s; }
+  .bar-val { width: 50px; font-size: 12px; font-weight: 600; color: var(--text); }
+
+  .loading { text-align: center; padding: 30px; color: var(--muted); font-size: 14px; }
+  .spin { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="page-title">Dashboard</h1>
+  <p id="page-sub">Vue d'ensemble</p>
+</header>
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active">
+  <div id="dash-loading" class="loading"><span class="spin"></span>Chargement...</div>
+  <div id="dash-content" style="display:none">
+    <div class="stats-grid">
+      <div class="stat-card green"><div class="label">Bénéfice total</div><div class="value" id="stat-benefice">0 €</div></div>
+      <div class="stat-card blue"><div class="label">Articles vendus</div><div class="value" id="stat-vendus">0</div></div>
+      <div class="stat-card orange"><div class="label">En stock</div><div class="value" id="stat-stock">0</div></div>
+      <div class="stat-card purple"><div class="label">CA total</div><div class="value" id="stat-ca">0 €</div></div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Top produits (bénéfice)</div>
+      <div class="bar-chart" id="chart-produits"></div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Ventes par site</div>
+      <div class="bar-chart" id="chart-sites"></div>
+    </div>
+  </div>
+</div>
+
+<!-- LISTE -->
+<div id="page-liste" class="page">
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('tous')">Tous</button>
+    <button class="filter-btn" onclick="setFilter('Vendu')">Vendus</button>
+    <button class="filter-btn" onclick="setFilter('En Stock')">En stock</button>
+    <button class="filter-btn" onclick="setFilter('Donné')">Donnés</button>
+  </div>
+  <div id="liste-loading" class="loading"><span class="spin"></span>Chargement...</div>
+  <div id="liste-content"></div>
+</div>
+
+<!-- AJOUTER -->
+<div id="page-ajouter" class="page">
+  <div class="card">
+    <div id="success-msg" class="success-msg">✓ Vente ajoutée avec succès !</div>
+    <div id="error-msg" class="error-msg">Erreur lors de l'ajout.</div>
+    <form id="form-vente" onsubmit="submitVente(event)">
+      <div class="form-group">
+        <label>Statut *</label>
+        <select name="statut" required>
+          <option value="">Choisir...</option>
+          <option value="En Stock">En Stock</option>
+          <option value="Vendu">Vendu</option>
+          <option value="Donné">Donné</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Nom du produit *</label>
+        <input type="text" name="nom" required placeholder="Ex: Ensemble training OM M">
+      </div>
+      <div class="form-group">
+        <label>Site d'achat</label>
+        <input type="text" name="site" placeholder="Ex: Jersey Dong">
+      </div>
+      <div class="form-group">
+        <label>Commande</label>
+        <input type="text" name="commande" placeholder="Ex: JerseyDong7">
+      </div>
+      <div class="form-group">
+        <label>Date d'achat</label>
+        <input type="date" name="dateAchat">
+      </div>
+      <div class="form-group">
+        <label>Prix d'achat (€)</label>
+        <input type="number" name="prixAchat" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Prix de vente (€)</label>
+        <input type="number" name="prixVente" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Date de vente</label>
+        <input type="date" name="dateVente">
+      </div>
+      <div class="form-group">
+        <label>Lieu de vente</label>
+        <input type="text" name="lieu" placeholder="Ex: vinted, leboncoin">
+      </div>
+      <div class="form-group">
+        <label>Commentaire</label>
+        <textarea name="commentaire" placeholder="Notes..."></textarea>
+      </div>
+      <button type="submit" class="btn-submit" id="btn-submit">Ajouter la vente</button>
+    </form>
+  </div>
+</div>
+
+<!-- NAV BAR -->
+<nav>
+  <button class="active" onclick="showPage('dashboard')" id="nav-dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    Dashboard
+  </button>
+  <button onclick="showPage('liste')" id="nav-liste">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    Liste
+  </button>
+  <button onclick="showPage('ajouter')" id="nav-ajouter">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    Ajouter
+  </button>
+</nav>
+
+<script>
+const API = 'https://ventes.sagetech.vip/api/v2/tables/ml77fzqvmmsnsk7/records';
+const TOKEN = 'nc_pat_RxWqgsy5VFxmhkct9zRPtsnotMRIxxsNVBehwb2J';
+const HEADERS = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
+
+let allData = [];
+let currentFilter = 'tous';
+
+const pages = { dashboard: 'Dashboard', liste: 'Mes articles', ajouter: 'Ajouter une vente' };
+const subs = { dashboard: 'Vue d\'ensemble', liste: 'Gérer votre stock', ajouter: 'Nouveau produit' };
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  document.getElementById('page-title').textContent = pages[name];
+  document.getElementById('page-sub').textContent = subs[name];
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'liste') renderListe();
+}
+
+async function fetchAll() {
+  if (allData.length > 0) return allData;
+  const r = await fetch(API + '?limit=500', { headers: HEADERS });
+  const d = await r.json();
+  allData = d.list || [];
+  return allData;
+}
+
+async function loadDashboard() {
+  document.getElementById('dash-loading').style.display = 'block';
+  document.getElementById('dash-content').style.display = 'none';
+  const data = await fetchAll();
+  const vendus = data.filter(r => r['Statut du Produit'] === 'Vendu');
+  const stock = data.filter(r => r['Statut du Produit'] === 'En Stock');
+  const benefice = vendus.reduce((s, r) => s + ((r['Prix Vente Reel'] || 0) - (r['Prix Achat Unitaire'] || 0)), 0);
+  const ca = vendus.reduce((s, r) => s + (r['Prix Vente Reel'] || 0), 0);
+
+  document.getElementById('stat-benefice').textContent = benefice.toFixed(0) + ' €';
+  document.getElementById('stat-vendus').textContent = vendus.length;
+  document.getElementById('stat-stock').textContent = stock.length;
+  document.getElementById('stat-ca').textContent = ca.toFixed(0) + ' €';
+
+  // Top produits
+  const prodMap = {};
+  vendus.forEach(r => {
+    const n = r['Nom du Produit'] || 'Inconnu';
+    const b = (r['Prix Vente Reel'] || 0) - (r['Prix Achat Unitaire'] || 0);
+    prodMap[n] = (prodMap[n] || 0) + b;
+  });
+  const prods = Object.entries(prodMap).sort((a,b) => b[1]-a[1]).slice(0,6);
+  const maxP = prods[0] ? prods[0][1] : 1;
+  document.getElementById('chart-produits').innerHTML = prods.map(([k,v]) =>
+    `<div class="bar-row"><div class="bar-label" title="${k}">${k}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(4,(v/maxP*100))}%"></div></div><div class="bar-val">${v.toFixed(0)}€</div></div>`
+  ).join('') || '<div class="empty">Aucune vente</div>';
+
+  // Par site
+  const siteMap = {};
+  vendus.forEach(r => {
+    const s = r['Lieu de Vente'] || r['Site dAchat'] || 'Autre';
+    siteMap[s] = (siteMap[s] || 0) + 1;
+  });
+  const sites = Object.entries(siteMap).sort((a,b) => b[1]-a[1]);
+  const maxS = sites[0] ? sites[0][1] : 1;
+  document.getElementById('chart-sites').innerHTML = sites.map(([k,v]) =>
+    `<div class="bar-row"><div class="bar-label">${k}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(4,(v/maxS*100))}%"></div></div><div class="bar-val">${v}</div></div>`
+  ).join('') || '<div class="empty">Aucune vente</div>';
+
+  document.getElementById('dash-loading').style.display = 'none';
+  document.getElementById('dash-content').style.display = 'block';
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderListe();
+}
+
+async function renderListe() {
+  document.getElementById('liste-loading').style.display = 'block';
+  document.getElementById('liste-content').innerHTML = '';
+  const data = await fetchAll();
+  let items = currentFilter === 'tous' ? data : data.filter(r => r['Statut du Produit'] === currentFilter);
+  document.getElementById('liste-loading').style.display = 'none';
+  if (!items.length) { document.getElementById('liste-content').innerHTML = '<div class="empty">Aucun article</div>'; return; }
+  const badgeClass = { 'Vendu': 'vendu', 'En Stock': 'stock', 'Donné': 'donne' };
+  const badgeLabel = { 'Vendu': 'Vendu', 'En Stock': 'En stock', 'Donné': 'Donné' };
+  document.getElementById('liste-content').innerHTML = items.map(r => {
+    const statut = r['Statut du Produit'] || '';
+    const benefice = (r['Prix Vente Reel'] || 0) - (r['Prix Achat Unitaire'] || 0);
+    const beneficeClass = benefice >= 0 ? 'benefice' : 'benefice neg';
+    const dateV = r['Date Vente'] ? new Date(r['Date Vente']).toLocaleDateString('fr-FR') : '';
+    const dateA = r['Date Achat'] ? new Date(r['Date Achat']).toLocaleDateString('fr-FR') : '';
+    return `<div class="vente-item">
+      <div class="vente-header">
+        <div class="vente-nom">${r['Nom du Produit'] || 'Sans nom'}</div>
+        <span class="badge ${badgeClass[statut] || 'stock'}">${badgeLabel[statut] || statut}</span>
+      </div>
+      <div class="vente-meta">
+        ${r['Site dAchat'] ? '<span>'+r['Site dAchat']+'</span>' : ''}
+        ${r['Commande'] ? '<span>'+r['Commande']+'</span>' : ''}
+        ${dateA ? '<span>Acheté '+dateA+'</span>' : ''}
+      </div>
+      ${r['Prix Achat Unitaire'] || r['Prix Vente Reel'] ? `<div class="vente-prix">
+        Achat: <b>${r['Prix Achat Unitaire'] ? r['Prix Achat Unitaire']+'€' : '-'}</b>
+        ${r['Prix Vente Reel'] ? ' → Vente: <b>'+r['Prix Vente Reel']+'€</b>' : ''}
+        ${statut === 'Vendu' ? ' <span class="'+beneficeClass+'">('+( benefice>=0?'+':'')+benefice.toFixed(1)+'€)</span>' : ''}
+      </div>` : ''}
+      ${dateV ? '<div style="font-size:12px;color:var(--muted);margin-top:4px">Vendu le '+dateV+(r['Lieu de Vente']?' sur '+r['Lieu de Vente']:'')+`</div>` : ''}
+      ${r['Commentaire'] ? '<div style="font-size:12px;color:var(--muted);margin-top:4px;font-style:italic">'+r['Commentaire']+'</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+async function submitVente(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-submit');
+  const form = e.target;
+  const data = new FormData(form);
+  btn.disabled = true;
+  btn.textContent = 'Envoi...';
+  document.getElementById('success-msg').style.display = 'none';
+  document.getElementById('error-msg').style.display = 'none';
+
+  const body = { 'Statut du Produit': data.get('statut'), 'Nom du Produit': data.get('nom') };
+  if (data.get('site')) body['Site dAchat'] = data.get('site');
+  if (data.get('commande')) body['Commande'] = data.get('commande');
+  if (data.get('dateAchat')) body['Date Achat'] = data.get('dateAchat');
+  if (data.get('prixAchat')) body['Prix Achat Unitaire'] = parseFloat(data.get('prixAchat'));
+  if (data.get('prixVente')) body['Prix Vente Reel'] = parseFloat(data.get('prixVente'));
+  if (data.get('dateVente')) body['Date Vente'] = data.get('dateVente');
+  if (data.get('lieu')) body['Lieu de Vente'] = data.get('lieu');
+  if (data.get('commentaire')) body['Commentaire'] = data.get('commentaire');
+
+  try {
+    const r = await fetch(API, { method: 'POST', headers: HEADERS, body: JSON.stringify(body) });
+    if (r.ok) {
+      allData = [];
+      form.reset();
+      document.getElementById('success-msg').style.display = 'block';
+      setTimeout(() => document.getElementById('success-msg').style.display = 'none', 3000);
+    } else { throw new Error(); }
+  } catch { document.getElementById('error-msg').style.display = 'block'; }
+
+  btn.disabled = false;
+  btn.textContent = 'Ajouter la vente';
+}
+
+// Init
+loadDashboard();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
