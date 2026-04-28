@@ -218,6 +218,8 @@ const HEADERS = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
 
 let allData = [];
 let currentFilter = 'tous';
+const CACHE_KEY = 'ventes_cache';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 const pages = { dashboard: 'Dashboard', liste: 'Mes articles', ajouter: 'Ajouter une vente' };
 const subs = { dashboard: 'Vue d\'ensemble', liste: 'Gérer votre stock', ajouter: 'Nouveau produit' };
@@ -235,15 +237,27 @@ function showPage(name) {
 
 async function fetchAll() {
   if (allData.length > 0) return allData;
+  // Vérifier le cache localStorage
+  try {
+    const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      allData = cached.data;
+      return allData;
+    }
+  } catch(e) {}
   const r = await fetch(API + '?limit=500', { headers: HEADERS });
   const d = await r.json();
   allData = d.list || [];
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: allData })); } catch(e) {}
   return allData;
 }
 
 async function loadDashboard() {
-  document.getElementById('dash-loading').style.display = 'block';
-  document.getElementById('dash-content').style.display = 'none';
+  const hasCache = allData.length > 0;
+  if (!hasCache) {
+    document.getElementById('dash-loading').style.display = 'block';
+    document.getElementById('dash-content').style.display = 'none';
+  }
   const data = await fetchAll();
   const vendus = data.filter(r => r['Statut du Produit'] === 'Vendu');
   const stock = data.filter(r => r['Statut du Produit'] === 'En Stock');
@@ -292,8 +306,11 @@ function setFilter(f) {
 }
 
 async function renderListe() {
-  document.getElementById('liste-loading').style.display = 'block';
-  document.getElementById('liste-content').innerHTML = '';
+  const hasCache = allData.length > 0;
+  if (!hasCache) {
+    document.getElementById('liste-loading').style.display = 'block';
+    document.getElementById('liste-content').innerHTML = '';
+  }
   const data = await fetchAll();
   let items = currentFilter === 'tous' ? data : data.filter(r => r['Statut du Produit'] === currentFilter);
   document.getElementById('liste-loading').style.display = 'none';
@@ -351,6 +368,7 @@ async function submitVente(e) {
     const r = await fetch(API, { method: 'POST', headers: HEADERS, body: JSON.stringify(body) });
     if (r.ok) {
       allData = [];
+      try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
       form.reset();
       document.getElementById('success-msg').style.display = 'block';
       setTimeout(() => document.getElementById('success-msg').style.display = 'none', 3000);
