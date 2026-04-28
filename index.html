@@ -219,7 +219,7 @@ const HEADERS = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
 let allData = [];
 let currentFilter = 'tous';
 const CACHE_KEY = 'ventes_cache';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 const pages = { dashboard: 'Dashboard', liste: 'Mes articles', ajouter: 'Ajouter une vente' };
 const subs = { dashboard: 'Vue d\'ensemble', liste: 'Gérer votre stock', ajouter: 'Nouveau produit' };
@@ -235,22 +235,44 @@ function showPage(name) {
   if (name === 'liste') renderListe();
 }
 
-async function fetchAll() {
-  if (allData.length > 0) return allData;
-  // Vérifier le cache localStorage
+function loadFromCache() {
   try {
     const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
-    if (cached && Date.now() - cached.ts < CACHE_TTL) {
-      allData = cached.data;
-      return allData;
-    }
+    if (cached) { allData = cached.data; return true; }
   } catch(e) {}
+  return false;
+}
+
+async function fetchFromAPI() {
   const r = await fetch(API + '?limit=500', { headers: HEADERS });
   const d = await r.json();
   allData = d.list || [];
   try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: allData })); } catch(e) {}
+}
+
+async function fetchAll() {
+  if (allData.length > 0) return allData;
+  loadFromCache();
+  if (allData.length === 0) await fetchFromAPI(); // pas de cache : on attend
   return allData;
 }
+
+// Stale-while-revalidate : si cache présent, afficher tout de suite + refresh silencieux
+async function refreshInBackground() {
+  try {
+    await fetchFromAPI();
+    // Rafraîchir silencieusement l'UI active
+    const dashActive = document.getElementById('page-dashboard').classList.contains('active');
+    const listeActive = document.getElementById('page-liste').classList.contains('active');
+    if (dashActive) loadDashboard();
+    if (listeActive) renderListe();
+  } catch(e) {}
+}
+
+// Keep-alive : ping NocoDB toutes les 90s pour éviter le cold start
+setInterval(() => {
+  fetch(API + '?limit=1', { headers: HEADERS }).catch(() => {});
+}, 90000);
 
 async function loadDashboard() {
   const hasCache = allData.length > 0;
@@ -379,8 +401,10 @@ async function submitVente(e) {
   btn.textContent = 'Ajouter la vente';
 }
 
-// Init
+// Init : cache d'abord, puis refresh en arrière-plan
+const hadCache = loadFromCache();
 loadDashboard();
+if (hadCache) setTimeout(refreshInBackground, 1000); // refresh silencieux après affichage
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
 </body>
